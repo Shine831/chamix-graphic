@@ -1,73 +1,94 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import React, { useState, useRef, createContext, useContext } from "react";
+import { motion, useMotionValue, useSpring, useTransform, MotionValue } from "framer-motion";
+
+const TiltContext = createContext<{
+  mouseX: MotionValue<number>;
+  mouseY: MotionValue<number>;
+} | null>(null);
+
+export function ParallaxLayer({ children, offset = 0.1, className = "" }: { children: React.ReactNode, offset?: number, className?: string }) {
+  const context = useContext(TiltContext);
+  if (!context) return <>{children}</>;
+
+  const x = useTransform(context.mouseX, [0, 1], [`${offset * 100}%`, `${-offset * 100}%`]);
+  const y = useTransform(context.mouseY, [0, 1], [`${offset * 100}%`, `${-offset * 100}%`]);
+
+  return (
+    <motion.div style={{ x, y, zIndex: Math.floor(offset * 100) }} className={`absolute inset-0 ${className}`}>
+      {children}
+    </motion.div>
+  );
+}
 
 export function TiltCard({ children, className }: { children: React.ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  const x = useMotionValue(0.5);
-  const y = useMotionValue(0.5);
+  const mouseX = useMotionValue(0.5);
+  const mouseY = useMotionValue(0.5);
 
-  const springConfig = { damping: 20, stiffness: 200, mass: 0.5 };
-  const mouseXSpring = useSpring(x, springConfig);
-  const mouseYSpring = useSpring(y, springConfig);
+  const springConfig = { damping: 30, stiffness: 300, mass: 0.5 };
+  const mouseXSpring = useSpring(mouseX, springConfig);
+  const mouseYSpring = useSpring(mouseY, springConfig);
 
-  const rotateX = useTransform(mouseYSpring, [0, 1], ["5deg", "-5deg"]);
-  const rotateY = useTransform(mouseXSpring, [0, 1], ["-5deg", "5deg"]);
-  // Glow effect positioning
-  const backgroundX = useTransform(mouseXSpring, [0, 1], ["0%", "100%"]);
-  const backgroundY = useTransform(mouseYSpring, [0, 1], ["0%", "100%"]);
+  const rotateX = useTransform(mouseYSpring, [0, 1], ["7.5deg", "-7.5deg"]);
+  const rotateY = useTransform(mouseXSpring, [0, 1], ["-7.5deg", "7.5deg"]);
+
+  // Glare / Light position
+  const glareX = useTransform(mouseXSpring, [0, 1], ["0%", "100%"]);
+  const glareY = useTransform(mouseYSpring, [0, 1], ["0%", "100%"]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    x.set(mouseX / width);
-    y.set(mouseY / height);
+    mouseX.set((e.clientX - rect.left) / rect.width);
+    mouseY.set((e.clientY - rect.top) / rect.height);
   };
 
-  const handleMouseEnter = () => setIsHovered(true);
-  
   const handleMouseLeave = () => {
     setIsHovered(false);
-    x.set(0.5);
-    y.set(0.5);
+    mouseX.set(0.5);
+    mouseY.set(0.5);
   };
 
   return (
-    <motion.div
-      ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        rotateX,
-        rotateY,
-        transformStyle: "preserve-3d",
-      }}
-      className={`relative w-full h-full rounded-[2px] transition-all duration-300 ease-out hover-trigger perspective-1000 ${className}`}
-    >
-      <div className="absolute inset-0 z-0 w-full h-full overflow-hidden shadow-2xl">
-        {children}
-        
-        {/* The Glare / Light Reflection */}
+    <TiltContext.Provider value={{ mouseX: mouseXSpring, mouseY: mouseYSpring }}>
+      <motion.div
+        ref={ref}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+        }}
+        className={`relative w-full h-full overflow-hidden rounded-[4px] bg-[#111] border border-white/5 perspective-2000 transition-shadow duration-500 ${isHovered ? "shadow-[0_20px_50px_rgba(0,0,0,0.8)]" : ""} ${className}`}
+      >
+        <div className="relative w-full h-full pointer-events-none" style={{ transform: "translateZ(0px)" }}>
+           {children}
+        </div>
+
+        {/* Dynamic Glare Overlay */}
         <motion.div
-          className="absolute inset-0 z-30 pointer-events-none mix-blend-overlay opacity-0 transition-opacity duration-500"
+          className="absolute inset-0 z-50 pointer-events-none mix-blend-soft-light"
           style={{
-            opacity: isHovered ? 0.6 : 0,
-            background: `radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 60%)`,
-            left: useTransform(backgroundX, (v) => `calc(${v} - 50%)`),
-            top: useTransform(backgroundY, (v) => `calc(${v} - 50%)`),
-            width: "200%",
-            height: "200%",
+            opacity: isHovered ? 0.4 : 0,
+            background: useTransform(
+              [glareX, glareY],
+              ([x, y]) => `radial-gradient(circle at ${x} ${y}, rgba(255,255,255,0.8) 0%, transparent 60%)`
+            ),
           }}
         />
-      </div>
-    </motion.div>
+
+        {/* Subtle Rim Light */}
+        <motion.div
+           className="absolute inset-0 z-40 pointer-events-none border border-white/10"
+           animate={{ opacity: isHovered ? 1 : 0 }}
+        />
+      </motion.div>
+    </TiltContext.Provider>
   );
 }
