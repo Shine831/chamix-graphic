@@ -2,7 +2,7 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
-import { TiltCard } from "@/components/TiltCard";
+import { TiltCard, ParallaxLayer } from "@/components/TiltCard";
 import { useRef } from "react";
 
 const projects = [
@@ -101,8 +101,8 @@ function ProjectCard({ project, index, scrollYProgress }: {
       className={project.className}
     >
       <TiltCard className="group relative overflow-hidden glass-panel w-full h-full">
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
+        {/* Background Image Layer (Deepest) */}
+        <ParallaxLayer depth={-2} className="z-0">
           <Image
             src={project.image}
             alt={project.title}
@@ -111,10 +111,10 @@ function ProjectCard({ project, index, scrollYProgress }: {
             className="object-cover transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110 opacity-60 group-hover:opacity-100"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 group-hover:opacity-50 transition-opacity duration-700" />
-        </div>
+        </ParallaxLayer>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-end h-full p-6 md:p-8">
+        {/* Content Layer (Top) */}
+        <ParallaxLayer depth={2} className="z-10 flex flex-col justify-end p-6 md:p-8 pointer-events-none">
           <div className="flex items-center gap-4 mb-4 transform translate-y-4 opacity-0 transition-all duration-700 ease-out group-hover:translate-y-0 group-hover:opacity-100">
             <span className="text-[#DC143C] font-mono text-sm tracking-widest font-bold">
               [ PROJET_{project.id} ]
@@ -122,14 +122,14 @@ function ProjectCard({ project, index, scrollYProgress }: {
             <div className="h-[1px] flex-1 bg-white/20" />
           </div>
           
-          <h3 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-tight mb-2">
+          <h3 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-tight mb-2 drop-shadow-2xl">
             {project.title}
           </h3>
           
           <p className="text-[#8A8A8A] font-mono text-sm md:text-base transform transition-all duration-700 ease-out delay-75 group-hover:text-white">
             Résultat : <span className="text-[#DC143C] font-bold">{project.metric}</span>
           </p>
-        </div>
+        </ParallaxLayer>
         
         {/* Crimson Border Glow on Hover */}
         <div className="absolute inset-0 z-20 border border-transparent transition-all duration-500 group-hover:border-[#DC143C]/50 group-hover:shadow-[inset_0_0_30px_rgba(220,20,60,0.1)] pointer-events-none" />
