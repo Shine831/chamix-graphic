@@ -3,6 +3,7 @@
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 
 const navLinks = [
   { label: "Projets", href: "#projets" },
@@ -32,10 +33,16 @@ export default function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: isVisible ? 0 : -100 }}
         transition={{ duration: 0.4, ease: [0.76, 0, 0.24, 1] }}
-        className="fixed top-0 left-0 right-0 z-[80] glass-panel border-b border-white/5 px-6 py-4 flex items-center justify-between"
+        className="fixed top-0 left-0 right-0 z-[80] glass-panel border-b border-white/5 py-3 px-6 flex items-center justify-between"
       >
-        <a href="#" className="text-lg font-black tracking-tighter uppercase text-white hover:text-[#DC143C] transition-colors duration-300">
-          CHAMIX<span className="text-[#DC143C]">.</span>
+        <a href="#" className="relative block h-10 w-32 md:h-12 md:w-36 overflow-hidden transition-transform duration-300 hover:scale-105">
+          <Image
+            src="/images/logo.jpg"
+            alt="CHAMIX GRAPHIC Logo"
+            fill
+            className="object-contain object-left"
+            priority
+          />
         </a>
 
         {/* Desktop links */}

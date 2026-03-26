@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 export default function Footer() {
   return (
     <footer className="relative z-10 w-full border-t border-white/5 bg-[#020202]">
@@ -7,9 +9,14 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           {/* Brand */}
           <div>
-            <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-2">
-              CHAMIX<span className="text-[#DC143C]">.</span>
-            </h3>
+            <div className="relative h-14 w-40 mb-4 opacity-90 transition-opacity duration-300 hover:opacity-100">
+              <Image
+                src="/images/logo.jpg"
+                alt="CHAMIX GRAPHIC Logo"
+                fill
+                className="object-contain object-left"
+              />
+            </div>
             <p className="text-sm text-[#8A8A8A] font-mono max-w-xs">
               L&apos;Architecture Visuelle qui transforme l&apos;ambition en domination de marché.
             </p>
