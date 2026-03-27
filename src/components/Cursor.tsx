@@ -14,21 +14,36 @@ export default function Cursor() {
   const [isHovered, setIsHovered] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [magneticTarget, setMagneticTarget] = useState<HTMLElement | null>(null);
+  const [systemLabel] = useState(() => Math.random() > 0.5 ? "0X_COMMAND" : "UX_LINKED");
 
   const mouseX = useMotionValue(-100);
   const mouseY = useMotionValue(-100);
   
-  // High-performance spring physics
-  const springConfig = { damping: 30, stiffness: 400, mass: 0.4 };
+  // Ghost trail motion values
+  const ghostX = useMotionValue(-100);
+  const ghostY = useMotionValue(-100);
+
+  // High-performance spring physics for the core
+  const springConfig = { damping: 35, stiffness: 450, mass: 0.35 };
   const cursorX = useSpring(mouseX, springConfig);
   const cursorY = useSpring(mouseY, springConfig);
+
+  // Softer spring for the ghost trail
+  const ghostSpringConfig = { damping: 20, stiffness: 100, mass: 1 };
+  const trailX = useSpring(ghostX, ghostSpringConfig);
+  const trailY = useSpring(ghostY, ghostSpringConfig);
 
   // Velocity-driven deformation (Squash & Stretch)
   const velocityX = useVelocity(cursorX);
   const velocityY = useVelocity(cursorY);
 
-  const stretchX = useTransform(velocityX, [-3000, 0, 3000], [1.8, 1, 1.8]);
-  const stretchY = useTransform(velocityY, [-3000, 0, 3000], [0.4, 1, 0.4]);
+  // Calculate total velocity magnitude
+  const velocity = useTransform([velocityX, velocityY], ([vx, vy]) =>
+    Math.sqrt(Math.pow(Number(vx), 2) + Math.pow(Number(vy), 2))
+  );
+
+  const stretchX = useTransform(velocity, [0, 3000], [1, 1.6]);
+  const stretchY = useTransform(velocity, [0, 3000], [1, 0.5]);
 
   const angle = useTransform([velocityX, velocityY], ([vx, vy]) => {
     const vX = Number(vx);
@@ -43,17 +58,21 @@ export default function Cursor() {
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
-      // Magnetic pull: 70% towards target, 30% towards mouse
-      const pullX = centerX + (e.clientX - centerX) * 0.3;
-      const pullY = centerY + (e.clientY - centerY) * 0.3;
+      // Magnetic pull: 65% towards target, 35% towards mouse for a heavier feel
+      const pullX = centerX + (e.clientX - centerX) * 0.35;
+      const pullY = centerY + (e.clientY - centerY) * 0.35;
 
       mouseX.set(pullX);
       mouseY.set(pullY);
+      ghostX.set(pullX);
+      ghostY.set(pullY);
     } else {
       mouseX.set(e.clientX);
       mouseY.set(e.clientY);
+      ghostX.set(e.clientX);
+      ghostY.set(e.clientY);
     }
-  }, [magneticTarget, mouseX, mouseY]);
+  }, [magneticTarget, mouseX, mouseY, ghostX, ghostY]);
 
   useEffect(() => {
     const handleMouseOver = (e: MouseEvent) => {
@@ -86,12 +105,27 @@ export default function Cursor() {
       {/* Liquid Trail Effect (SVG Filter) */}
       <svg className="hidden">
         <defs>
-          <filter id="liquid">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="liquid" />
+          <filter id="liquid-premium">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="liquid" />
+            <feComposite in="SourceGraphic" in2="liquid" operator="atop" />
           </filter>
         </defs>
       </svg>
+
+      {/* Fluid Ghost Trail */}
+      <motion.div
+        className="absolute top-0 left-0 w-16 h-16 border border-[#DC143C]/20 rounded-full"
+        style={{
+          x: trailX,
+          y: trailY,
+          translateX: "-50%",
+          translateY: "-50%",
+          scale: useTransform(velocity, [0, 3000], [1, 2]),
+          opacity: useTransform(velocity, [0, 3000], [0.1, 0.4]),
+          filter: "blur(4px)",
+        }}
+      />
 
       {/* Main Kinetic Shell */}
       <motion.div
@@ -99,7 +133,7 @@ export default function Cursor() {
         style={{
           x: cursorX,
           y: cursorY,
-          filter: "url(#liquid)",
+          filter: "url(#liquid-premium)",
           translateX: "-50%",
           translateY: "-50%",
           rotate: angle,
@@ -109,22 +143,23 @@ export default function Cursor() {
       >
         <motion.div
           animate={{
-            width: isHovered ? 100 : 44,
-            height: isHovered ? 100 : 44,
-            border: isHovered ? "2px solid #DC143C" : "1px solid rgba(255, 255, 255, 0.3)",
-            backgroundColor: isHovered ? "rgba(220, 20, 60, 0.15)" : "rgba(220, 20, 60, 0)",
+            width: isHovered ? 120 : 40,
+            height: isHovered ? 120 : 40,
+            border: isHovered ? "2px solid #DC143C" : "1px solid rgba(255, 255, 255, 0.4)",
+            backgroundColor: isHovered ? "rgba(220, 20, 60, 0.1)" : "rgba(220, 20, 60, 0)",
           }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="rounded-full relative"
         >
           {/* Inner pulse for hovered state */}
           <AnimatePresence>
             {isHovered && (
               <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                className="absolute inset-0 border border-white/20 rounded-full animate-ping"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1.2, opacity: [0, 0.5, 0] }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 border border-[#DC143C]/30 rounded-full"
               />
             )}
           </AnimatePresence>
@@ -143,32 +178,38 @@ export default function Cursor() {
       >
         <motion.div
           animate={{
-            scale: isActive ? 0.6 : isHovered ? 2 : 1,
+            scale: isActive ? 0.5 : isHovered ? 2.5 : 1,
             backgroundColor: isHovered ? "#FFFFFF" : "#DC143C",
             boxShadow: isHovered
-              ? "0 0 25px #FFFFFF"
-              : "0 0 15px #DC143C",
+              ? "0 0 30px #FFFFFF, 0 0 60px rgba(255, 255, 255, 0.3)"
+              : "0 0 20px #DC143C",
           }}
-          transition={{ duration: 0.2 }}
-          className="w-2.5 h-2.5 rounded-full"
-        />
+          transition={{ duration: 0.25 }}
+          className="w-2 h-2 rounded-full relative"
+        >
+          {/* Core Sparkle */}
+          <div className="absolute inset-0 bg-white rounded-full blur-[1px] opacity-50" />
+        </motion.div>
       </motion.div>
 
-      {/* Professional Metadata Label */}
+      {/* Modern System Label */}
       <AnimatePresence>
         {isHovered && (
           <motion.div
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 50, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            className="absolute top-0 left-0 text-center"
-            style={{ x: cursorX, y: cursorY, translateX: "-50%" }}
+            initial={{ opacity: 0, x: 20, filter: "blur(10px)" }}
+            animate={{ opacity: 1, x: 70, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: 20, filter: "blur(10px)" }}
+            className="absolute top-0 left-0 flex items-center gap-4"
+            style={{ x: cursorX, y: cursorY, translateY: "-50%" }}
           >
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[9px] font-black uppercase tracking-[0.5em] text-[#DC143C] whitespace-nowrap bg-black/80 px-3 py-1.5 border border-[#DC143C]/30 backdrop-blur-xl">
-                SYSTEM_ENGAGED
+            <div className="h-[1px] w-8 bg-[#DC143C]" />
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase tracking-[0.6em] text-[#DC143C] leading-none">
+                PROTOCOL_ACTIVE
               </span>
-              <div className="w-[1px] h-4 bg-gradient-to-b from-[#DC143C] to-transparent" />
+              <span className="text-[10px] font-mono text-white/40 mt-1">
+                {systemLabel}
+              </span>
             </div>
           </motion.div>
         )}
